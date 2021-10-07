@@ -1,0 +1,15 @@
+num_epochs = 200
+root_dir = 'data/RoadCracks'
+num_classes = 2
+batch_size = 10
+lr = 0.01
+momentum = 0.9
+optim_w_decay = 1e-5
+step_size = 300
+gamma = 0.1
+load_ckp = False
+print_gpu_usage = False
+directory_name = 'RoadCracks_dropout0.25_fullDataSet'
+mc_samples = 5
+num_training = 5
+repeats = 4
