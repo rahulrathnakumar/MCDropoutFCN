@@ -64,7 +64,7 @@ class VGGNet(VGG):
 
 
 class FCNs(nn.Module):
-    def __init__(self, pretrained_net, n_class):
+    def __init__(self, pretrained_net, n_class, p = 0.5):
         super().__init__()
         self.n_class = n_class
         self.pretrained_net = pretrained_net

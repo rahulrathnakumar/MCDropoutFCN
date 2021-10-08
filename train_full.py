@@ -6,6 +6,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
+from shutil import copyfile
 
 import numpy as np
 import cv2
@@ -18,7 +19,7 @@ import shutil
 import csv
 from config import *
 
-from defectDataset import RoadCracks
+from defectDataset import DefectDataset
 from network import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
@@ -29,7 +30,6 @@ matplotlib.use('tkAgg')
 from matplotlib import pyplot as plt
 
 
-
 # CONFIG VARIABLES
 # Dataset parameters
 root_dir = root_dir
@@ -38,6 +38,7 @@ num_classes = num_classes
 num_samples = mc_samples
 
 # Training and optimization parameters
+optimizer_name = optimizer_name
 epochs = num_epochs
 batch_size = batch_size
 lr = lr
@@ -45,6 +46,7 @@ momentum = momentum
 optim_w_decay = optim_w_decay
 step_size = step_size
 gamma = gamma
+p = dropout_prob
 # Admin
 load_model = load_ckp
 
@@ -67,10 +69,8 @@ if not os.path.exists(best_dir):
     os.makedirs(best_dir)
 
 # create config file
-csv_file = model_dir + '/config.txt'
-# f = open(csv_file, 'w')
-# f.write(str(config))
-# f.close()
+copyfile('config.py', model_dir + 'config.py')
+
 
 # Activate GPU
 use_gpu = torch.cuda.is_available()
@@ -94,25 +94,31 @@ data_transforms = {
     }
 # Dataloaders
 
-image_datasets = {x: RoadCracks(root_dir, image_set = x, transforms=data_transforms[x])
+image_datasets = {x: DefectDataset(root_dir, num_classes = num_classes,image_set = x, transforms=data_transforms[x])
                         for x in ['train', 'val']}
 dataloader = {x: DataLoader(image_datasets[x], batch_size= batch_size, shuffle=True, num_workers=0)
                     for x in ['train', 'val']}
 
 # Network
 vgg_model = VGGNet()
-net = FCNs(pretrained_net= vgg_model, n_class = num_classes)
+net = FCNs(pretrained_net = vgg_model, n_class = num_classes, p = p)
 vgg_model = vgg_model.to(device)
 net = net.to(device)
 
 
 # Optimizers
-optimizer = torch.optim.SGD(net.parameters(),
-                            lr=lr,
-                            momentum=momentum,
-                            weight_decay=optim_w_decay,
-                            nesterov=False)
-scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
+if optimizer_name == 'SGD':
+    optimizer = torch.optim.SGD(net.parameters(),
+                                lr=lr,
+                                momentum=momentum,
+                                weight_decay=optim_w_decay,
+                                nesterov=False)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
+
+elif optimizer_name == 'Adam':
+    optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay = optim_w_decay)
+    
+
 
 if load_model:
     print("Loading checkpoint from previous save file...")
@@ -198,8 +204,8 @@ for epoch in range(epochs):
         epoch_loss = running_loss/(iter + 1)
         epoch_IU = np.mean(batchIU)
         epoch_F1 = np.mean(batchF1)
-        if phase == 'train':
-            scheduler.step()
+        # if phase == 'train':
+        #     scheduler.step()
         print('{} Loss: {:.4f}, Acc: {:.4f}, IoU: {:.4f}, F1: {:.4f}'.format(phase, epoch_loss, epoch_acc, epoch_IU, epoch_F1))
         
         plotter.plot('loss', phase, 'Loss', epoch, epoch_loss)
