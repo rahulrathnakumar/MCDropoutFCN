@@ -7,3 +7,4 @@ Some codes are from
 
 All the loss functions have been tested with [nnUNet](https://github.com/MIC-DKFZ/nnUNet). Also, they can be used in a plug-and-play way.
 
+This folder has been imported from https://github.com/rahulrathnakumar/SegLoss
