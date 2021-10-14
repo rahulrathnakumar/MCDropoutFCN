@@ -17,7 +17,7 @@ import GPUtil
 import shutil
 import csv
 from config import *
-from defectDataset import RoadCracks
+from defectDataset import DefectDataset
 from network import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
@@ -80,7 +80,7 @@ for r in range(repeats):
 		])
 	}
 	# Dataloading
-	val_dataset = RoadCracks(root_dir = root_dir, image_set='val', transforms= data_transforms['val'])
+	val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms= data_transforms['val'])
 	val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 	vgg_model = VGGNet()
@@ -207,7 +207,7 @@ for r in range(repeats):
 		])
 	}
 	# Dataloading
-	val_dataset = RoadCracks(root_dir = root_dir, image_set='val', transforms= data_transforms['val'])
+	val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms= data_transforms['val'])
 	val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 	vgg_model = VGGNet()

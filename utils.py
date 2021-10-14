@@ -112,7 +112,8 @@ def iou(output, target, per_image = False):
     target = target.cpu().numpy()
     target = target.astype(np.uint8)
     if per_image:
-        batchIOU = classIU(predIU, target)[:,1]
+        # batchIOU = classIU(predIU, target)[:,1]
+        batchIOU = np.nanmean(classIU(predIU, target), axis = 1)
         return batchIOU
     else:
         batchIOU = (np.nanmean(classIU(predIU, target)))
@@ -145,5 +146,6 @@ def entropy(y):
     for c in range(num_classes):
         entropy_c.append(y[:,c,:,:]*np.log(y[:,c,:,:]))
     uncertainty = -np.sum(np.asarray(entropy_c), axis = 0)
+    # uncertainty = np.asarray(entropy_c)[1]
     return uncertainty
 

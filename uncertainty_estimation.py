@@ -18,7 +18,7 @@ import GPUtil
 import shutil
 import csv
 from config import *
-from defectDataset import RoadCracks
+from defectDataset import DefectDataset
 from network import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
@@ -83,7 +83,7 @@ data_transforms = {
 	])
 	}
 # Dataloading
-val_dataset = RoadCracks(root_dir = root_dir, image_set='val', transforms = data_transforms['val'])
+val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms = data_transforms['val'])
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size)
 
 vgg_model = VGGNet()
@@ -125,6 +125,8 @@ with torch.no_grad():
 			outs_sm.append(out__.cpu().numpy())
 			accuracy = utils.pixel_accuracy(out_,label_) # batch accuracy
 			iou = utils.iou(out_, label_, per_image=True)
+			if np.isnan(iou).any():
+				print(iou)
 			samples_acc.append(accuracy)
 			samples_IU.append(iou)
 			samples_F1.append(utils.f1(iou))
@@ -223,7 +225,7 @@ data_transforms = {
 	])
 }
 # Dataloading
-val_dataset = RoadCracks(root_dir = root_dir, image_set='val', transforms= data_transforms['val'])
+val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms= data_transforms['val'])
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 vgg_model = VGGNet()

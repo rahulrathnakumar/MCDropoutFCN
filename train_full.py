@@ -29,6 +29,7 @@ import matplotlib
 matplotlib.use('tkAgg')
 from matplotlib import pyplot as plt
 
+from losses_pytorch.boundary_loss import *    
 
 # CONFIG VARIABLES
 # Dataset parameters
@@ -117,7 +118,7 @@ if optimizer_name == 'SGD':
 
 elif optimizer_name == 'Adam':
     optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay = optim_w_decay)
-    
+
 
 
 if load_model:
@@ -126,6 +127,7 @@ if load_model:
     net, optimizer, epoch = utils.load_ckp(ckp_path, net, optimizer=optimizer)
     print("Epoch loaded: ", epoch)
 # supervised loss
+# sup_loss = DC_and_BD_loss(soft_dice_kwargs= {'batch_dice' : False, 'do_bg' : False, 'smooth' : 1e-5, 'square' : False}, bd_kwargs = {})
 sup_loss = nn.BCEWithLogitsLoss()
 global global_step
 global_step = 0
@@ -204,8 +206,8 @@ for epoch in range(epochs):
         epoch_loss = running_loss/(iter + 1)
         epoch_IU = np.mean(batchIU)
         epoch_F1 = np.mean(batchF1)
-        # if phase == 'train':
-        #     scheduler.step()
+        if phase == 'train':
+            scheduler.step()
         print('{} Loss: {:.4f}, Acc: {:.4f}, IoU: {:.4f}, F1: {:.4f}'.format(phase, epoch_loss, epoch_acc, epoch_IU, epoch_F1))
         
         plotter.plot('loss', phase, 'Loss', epoch, epoch_loss)

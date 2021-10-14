@@ -18,7 +18,7 @@ import shutil
 import csv
 from config import *
 
-from defectDataset import RoadCracks
+from defectDataset import DefectDataset
 from network import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
@@ -95,7 +95,7 @@ for r in range(repeats):
         }
     # Dataloaders
 
-    image_datasets = {x: RoadCracks(root_dir, image_set = x, transforms=data_transforms[x])
+    image_datasets = {x: DefectDataset(root_dir, image_set = x, num_classes = num_classes, num_training = 5, transforms=data_transforms[x])
                             for x in ['train', 'val']}
     dataloader = {x: DataLoader(image_datasets[x], batch_size= batch_size, shuffle=True, num_workers=0)
                         for x in ['train', 'val']}
@@ -125,6 +125,8 @@ for r in range(repeats):
     global global_step
     global_step = 0
     best_IU = 0
+    loss_history = []
+    avg_loss = 0
     for epoch in range(epochs):
         print('Epoch {}/{}'.format(epoch,epochs - 1))
         for phase in ['train','val']:
@@ -193,6 +195,7 @@ for r in range(repeats):
                         batchIU.append(np.nanmean(np.asarray(samples_IU)))
                         batchF1.append(np.nanmean(np.asarray(samples_F1)))
                         loss = sup_loss(out, label)
+                        loss_history.append(loss)
                         running_acc += np.mean(batch_accuracy)
                         running_loss +=  loss.item()
             epoch_acc = running_acc/(iter+1)
@@ -207,6 +210,14 @@ for r in range(repeats):
             plotter.plot('acc', phase, 'Accuracy', epoch, epoch_acc)
             plotter.plot('IU', phase, 'IU', epoch, epoch_IU)
             plotter.plot('F1', phase, 'F1', epoch, epoch_F1)
+
+            if len(loss_history) == 20:
+                d_loss = np.mean(np.asarray(loss_history)) - avg_loss 
+                avg_loss = np.mean(np.asarray(loss_history))
+                loss_history = []
+                if d_loss < 0.001:
+                    print("Stopping early, no significant change in val loss.")
+                    utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
 
             if phase == 'val' and epoch_IU > best_IU:
                 best_IU = epoch_IU
