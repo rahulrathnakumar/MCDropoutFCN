@@ -26,6 +26,7 @@ import utils
 from PIL import Image
 import matplotlib
 from matplotlib import pyplot as plt
+from shutil import copyfile
 
 repeats = repeats
 
@@ -46,9 +47,10 @@ for r in range(repeats):
     optim_w_decay = optim_w_decay
     step_size = step_size
     gamma = gamma
+    optimizer_name = optimizer_name
     # Admin
     load_model = load_ckp
-
+    
 
     # Initialize plotter
     global plotter
@@ -67,11 +69,10 @@ for r in range(repeats):
     if not os.path.exists(best_dir):
         os.makedirs(best_dir)
 
+
     # create config file
-    csv_file = model_dir + '/config.txt'
-    # f = open(csv_file, 'w')
-    # f.write(str(config))
-    # f.close()
+    copyfile('config.py', directory_name + '_config.py')
+
 
     # Activate GPU
     use_gpu = torch.cuda.is_available()
@@ -108,12 +109,17 @@ for r in range(repeats):
 
 
     # Optimizers
-    optimizer = torch.optim.SGD(net.parameters(),
-                                lr=lr,
-                                momentum=momentum,
-                                weight_decay=optim_w_decay,
-                                nesterov=False)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
+    if optimizer_name == 'SGD':
+        optimizer = torch.optim.SGD(net.parameters(),
+                                    lr=lr,
+                                    momentum=momentum,
+                                    weight_decay=optim_w_decay,
+                                    nesterov=False)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
+
+    elif optimizer_name == 'Adam':
+        optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay = optim_w_decay)
+
 
     if load_model:
         print("Loading checkpoint from previous save file...")
@@ -195,15 +201,16 @@ for r in range(repeats):
                         batchIU.append(np.nanmean(np.asarray(samples_IU)))
                         batchF1.append(np.nanmean(np.asarray(samples_F1)))
                         loss = sup_loss(out, label)
-                        loss_history.append(loss)
                         running_acc += np.mean(batch_accuracy)
                         running_loss +=  loss.item()
             epoch_acc = running_acc/(iter+1)
             epoch_loss = running_loss/(iter + 1)
             epoch_IU = np.mean(batchIU)
             epoch_F1 = np.mean(batchF1)
-            if phase == 'train':
+            if optimizer_name == 'SGD' and phase == 'train':
                 scheduler.step()
+            if phase == 'val':
+                loss_history.append(epoch_loss)
             print('{} Loss: {:.4f}, Acc: {:.4f}, IoU: {:.4f}, F1: {:.4f}'.format(phase, epoch_loss, epoch_acc, epoch_IU, epoch_F1))
             
             plotter.plot('loss', phase, 'Loss', epoch, epoch_loss)
@@ -212,7 +219,8 @@ for r in range(repeats):
             plotter.plot('F1', phase, 'F1', epoch, epoch_F1)
 
             if len(loss_history) == 20:
-                d_loss = np.mean(np.asarray(loss_history)) - avg_loss 
+                print(np.asarray(loss_history))
+                d_loss = np.mean(loss_history) - avg_loss 
                 avg_loss = np.mean(np.asarray(loss_history))
                 loss_history = []
                 if d_loss < 0.001:

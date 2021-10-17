@@ -97,81 +97,81 @@ net.eval()
 mean=[0.485, 0.456, 0.406]
 std=[0.229, 0.224, 0.225]
 print("Validating at epoch: {:.4f}".format(epoch))
-# with torch.no_grad():
-# 	# Epistemic Uncertainty
-# 	net.dropout.train()
-# 	softmax = nn.Softmax(dim = 1)
-# 	count = 0
-# 	batchIU = []
-# 	batchF1 = []
-# 	batch_accuracy = []
-# 	count = 0
-# 	for iter, (input, target, label) in enumerate(val_dataloader):
-# 		outs = []
-# 		outs_sm = []
-# 		samples_IU = []
-# 		samples_F1 = []
-# 		samples_acc = []
+with torch.no_grad():
+	# Epistemic Uncertainty
+	net.dropout.train()
+	softmax = nn.Softmax(dim = 1)
+	count = 0
+	batchIU = []
+	batchF1 = []
+	batch_accuracy = []
+	count = 0
+	for iter, (input, target, label) in enumerate(val_dataloader):
+		outs = []
+		outs_sm = []
+		samples_IU = []
+		samples_F1 = []
+		samples_acc = []
 
-# 		input = input.to(device)
-# 		target = target.to(device)
-# 		label = label.to(device)
-# 		for i in range(num_samples):
-# 			outs.append(net(input))        
-# 		for out in outs:
-# 			out_ = out.detach().clone()
-# 			label_ = label.detach().clone()
-# 			out__ = softmax(out_)
-# 			outs_sm.append(out__.cpu().numpy())
-# 			accuracy = utils.pixel_accuracy(out_,label_) # batch accuracy
-# 			iou = utils.iou(out_, label_, per_image=True)
-# 			if np.isnan(iou).any():
-# 				print(iou)
-# 			samples_acc.append(accuracy)
-# 			samples_IU.append(iou)
-# 			samples_F1.append(utils.f1(iou))
+		input = input.to(device)
+		target = target.to(device)
+		label = label.to(device)
+		for i in range(num_samples):
+			outs.append(net(input))        
+		for out in outs:
+			out_ = out.detach().clone()
+			label_ = label.detach().clone()
+			out__ = softmax(out_)
+			outs_sm.append(out__.cpu().numpy())
+			accuracy = utils.pixel_accuracy(out_,label_) # batch accuracy
+			iou = utils.iou(out_, label_, per_image=True)
+			if np.isnan(iou).any():
+				print(iou)
+			samples_acc.append(accuracy)
+			samples_IU.append(iou)
+			samples_F1.append(utils.f1(iou))
 	
-# 		y_sm = np.nanmean(np.asarray(outs_sm), axis = 0)
-# 		epistemic_uncertainty = utils.entropy(y_sm)
-# 		batch_accuracy.append(np.nanmean(np.asarray(samples_acc), axis = 0))
-# 		batchIU.append(np.nanmean(np.asarray(samples_IU), axis = 0))
-# 		batchF1.append(np.nanmean(np.asarray(samples_F1), axis = 0))
-# 		epistemic_uncertainty_full.append(epistemic_uncertainty)
+		y_sm = np.nanmean(np.asarray(outs_sm), axis = 0)
+		epistemic_uncertainty = utils.entropy(y_sm)
+		batch_accuracy.append(np.nanmean(np.asarray(samples_acc), axis = 0))
+		batchIU.append(np.nanmean(np.asarray(samples_IU), axis = 0))
+		batchF1.append(np.nanmean(np.asarray(samples_F1), axis = 0))
+		epistemic_uncertainty_full.append(epistemic_uncertainty)
 		
-# 		# Save predictions
-# 		img = input.detach().cpu()
-# 		img = img * torch.tensor(std).view(3, 1, 1) + torch.tensor(mean).view(3, 1, 1)			
-# 		img = img.numpy().transpose(0,2,3,1)
-# 		mean_output = torch.mean(torch.stack(outs), dim = 0)
-# 		N, _, h, w = mean_output.shape
-# 		mean_output = mean_output.detach().cpu().numpy()
-# 		pred = mean_output.transpose(0, 2, 3, 1).reshape(-1, num_classes).argmax(axis=1).reshape(N, h, w)
-# 		pred = normalize(pred)
-# 		gt = label.detach().cpu().numpy().transpose(0, 2, 3, 1).reshape(-1, num_classes).argmax(axis=1).reshape(N, h, w)
-# 		for i in range(N):
-# 			count+=1
-# 			save_predictions(imgList = [img[i,:,:,0], gt[i], pred[i], epistemic_uncertainty[i]], path = save_dir + '/' + str(count) + "_epiTiled.png")
+		# Save predictions
+		img = input.detach().cpu()
+		img = img * torch.tensor(std).view(3, 1, 1) + torch.tensor(mean).view(3, 1, 1)			
+		img = img.numpy().transpose(0,2,3,1)
+		mean_output = torch.mean(torch.stack(outs), dim = 0)
+		N, _, h, w = mean_output.shape
+		mean_output = mean_output.detach().cpu().numpy()
+		pred = mean_output.transpose(0, 2, 3, 1).reshape(-1, num_classes).argmax(axis=1).reshape(N, h, w)
+		pred = normalize(pred)
+		gt = label.detach().cpu().numpy().transpose(0, 2, 3, 1).reshape(-1, num_classes).argmax(axis=1).reshape(N, h, w)
+		for i in range(N):
+			count+=1
+			save_predictions(imgList = [img[i,:,:,0], gt[i], pred[i], epistemic_uncertainty[i]], path = save_dir + '/' + str(count) + "_epiTiled.png")
 
 
-# batchF1 = np.hstack(batchF1)
-# epistemic_uncertainty_full = np.vstack(epistemic_uncertainty_full)
+batchF1 = np.hstack(batchF1)
+epistemic_uncertainty_full = np.vstack(epistemic_uncertainty_full)
 
-# mean_epi_uncertainty = []
-# for epi in epistemic_uncertainty_full:
-# 	mean_epi_uncertainty.append(np.mean(epi))
+mean_epi_uncertainty = []
+for epi in epistemic_uncertainty_full:
+	mean_epi_uncertainty.append(np.mean(epi))
 
 
-# # Plot results for epistemic
-# count = 0
-# for epi in epistemic_uncertainty_full:
-# 		count += 1
-# 		save_predictions(imgList = [epi], path = save_dir + '/' + str(count) + "_epiAveraged.png")
+# Plot results for epistemic
+count = 0
+for epi in epistemic_uncertainty_full:
+		count += 1
+		save_predictions(imgList = [epi], path = save_dir + '/' + str(count) + "_epiAveraged.png")
 
-# # Plot scatter F1 vs Mean epistemic uncertainty
-# plt.scatter(batchF1, mean_epi_uncertainty)
-# plt.xlabel('F1-score averaged from Test Time Augmentation')
-# plt.ylabel('Average Epistemic Uncertainty')
-# plt.show()
+# Plot scatter F1 vs Mean epistemic uncertainty
+plt.scatter(batchF1, mean_epi_uncertainty)
+plt.xlabel('F1-score averaged from Test Time Augmentation')
+plt.ylabel('Average Epistemic Uncertainty')
+plt.show()
 
 
 
