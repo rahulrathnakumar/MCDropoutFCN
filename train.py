@@ -220,7 +220,7 @@ for r in range(repeats):
 
             if len(loss_history) == 20:
                 print(np.asarray(loss_history))
-                d_loss = np.mean(loss_history) - avg_loss 
+                d_loss = np.abs(np.mean(loss_history) - avg_loss) 
                 avg_loss = np.mean(np.asarray(loss_history))
                 loss_history = []
                 if d_loss < 0.001:
