@@ -114,8 +114,8 @@ if optimizer_name == 'SGD':
                                 momentum=momentum,
                                 weight_decay=optim_w_decay,
                                 nesterov=False)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
-
+    # scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
+    scheduler = lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = gamma)
 elif optimizer_name == 'Adam':
     optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay = optim_w_decay)
 
