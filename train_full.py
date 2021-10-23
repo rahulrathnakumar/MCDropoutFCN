@@ -26,7 +26,7 @@ from matplotlib import pyplot as plt
 import utils
 from PIL import Image
 import matplotlib
-matplotlib.use('tkAgg')
+# matplotlib.use('tkAgg')
 from matplotlib import pyplot as plt
 
 from losses_pytorch.boundary_loss import *    
@@ -114,8 +114,7 @@ if optimizer_name == 'SGD':
                                 momentum=momentum,
                                 weight_decay=optim_w_decay,
                                 nesterov=False)
-    # scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
-    scheduler = lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = gamma)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
 elif optimizer_name == 'Adam':
     optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay = optim_w_decay)
 

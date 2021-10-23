@@ -151,7 +151,9 @@ for epi in epistemic_uncertainty_averaged:
 plt.scatter(epistemic_F1_averaged, mean_epi_uncertainty)
 plt.xlabel('F1-score averaged from MC Dropout')
 plt.ylabel('Average Epistemic Uncertainty')
-plt.show()
+plt.savefig(save_dir + '/' + 'epi_F1.png')
+plt.close()
+
 
 import ttach as tta
 
@@ -295,5 +297,5 @@ for ale in aleatoric_uncertainty_averaged:
 plt.scatter(aleatoric_F1_averaged, mean_ale_uncertainty)
 plt.xlabel('F1-score averaged from Test Time Augmentation')
 plt.ylabel('Average Aleatoric Uncertainty')
-plt.show()
-print("Here")
+plt.savefig(save_dir + '/' + 'ale_F1.png')
+plt.close()

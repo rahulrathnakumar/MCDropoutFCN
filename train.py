@@ -27,6 +27,8 @@ from PIL import Image
 import matplotlib
 from matplotlib import pyplot as plt
 from shutil import copyfile
+from writer import *
+
 
 repeats = repeats
 
@@ -57,7 +59,7 @@ for r in range(repeats):
     plotter = utils.VisdomLinePlotter(env_name='main')
 
     # Create results directories
-    savedir = 'models/' + directory_name + "_" + str(r)
+    savedir = directory_name + "_" + str(r)
     print("Savedir:", savedir)
     model_dir = os.path.join('models/', savedir)
     if not os.path.exists(model_dir):
@@ -71,7 +73,7 @@ for r in range(repeats):
 
 
     # create config file
-    copyfile('config.py', directory_name + '_config.py')
+    copyfile('config.py', model_dir + '_config.py')
 
 
     # Activate GPU
@@ -115,8 +117,8 @@ for r in range(repeats):
                                     momentum=momentum,
                                     weight_decay=optim_w_decay,
                                     nesterov=False)
-        # scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
-        scheduler = lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = gamma)
+        scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)  # decay LR by a factor of gamma every step_size epochs
+        # scheduler = lr_scheduler.ExponentialLR(optimizer = optimizer, gamma = gamma)
     elif optimizer_name == 'Adam':
         optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay = optim_w_decay)
 
@@ -226,6 +228,7 @@ for r in range(repeats):
                 if d_loss < 0.001:
                     print("Stopping early, no significant change in val loss.")
                     utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
+                    break
 
             if phase == 'val' and epoch_IU > best_IU:
                 best_IU = epoch_IU

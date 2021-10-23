@@ -171,8 +171,8 @@ for epi in epistemic_uncertainty_full:
 plt.scatter(batchF1, mean_epi_uncertainty)
 plt.xlabel('F1-score averaged from Test Time Augmentation')
 plt.ylabel('Average Epistemic Uncertainty')
-plt.show()
-
+plt.savefig(save_dir + '/' + 'epi_F1.png')
+plt.close()
 
 
 import ttach as tta
@@ -313,5 +313,5 @@ for ale in aleatoric_uncertainty_full:
 plt.scatter(batchF1, mean_ale_uncertainty)
 plt.xlabel('F1-score averaged from Test Time Augmentation')
 plt.ylabel('Average Aleatoric Uncertainty')
-plt.show()
-print('here')
+plt.savefig(save_dir + '/' + 'ale_F1.png')
+plt.close()
