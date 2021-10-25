@@ -18,8 +18,8 @@ import shutil
 import csv
 from config import *
 
-from defectDataset import DefectDataset
-from network import *
+from defectDataset import DefectDataset, ASUDepth
+from network_rgbd import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
 import utils
@@ -49,6 +49,7 @@ for r in range(repeats):
     optim_w_decay = optim_w_decay
     step_size = step_size
     gamma = gamma
+    p = dropout_prob
     optimizer_name = optimizer_name
     # Admin
     load_model = load_ckp
@@ -98,14 +99,14 @@ for r in range(repeats):
         }
     # Dataloaders
 
-    image_datasets = {x: DefectDataset(root_dir, image_set = x, num_classes = num_classes, num_training = 5, transforms=data_transforms[x])
+    image_datasets = {x: ASUDepth(root_dir, image_set = x, num_classes = num_classes, num_training = 5, transforms=data_transforms[x])
                             for x in ['train', 'val']}
     dataloader = {x: DataLoader(image_datasets[x], batch_size= batch_size, shuffle=True, num_workers=0)
                         for x in ['train', 'val']}
 
     # Network
     vgg_model = VGGNet()
-    net = FCNs(pretrained_net= vgg_model, n_class = num_classes)
+    net = FCNDepth(pretrained_net= vgg_model, n_class = num_classes, p = p)
     vgg_model = vgg_model.to(device)
     net = net.to(device)
 
@@ -150,14 +151,15 @@ for r in range(repeats):
                 net.eval()
                 net.dropout.train()
             # Train/val loop
-            for iter, (input, target, label) in enumerate(dataloader[phase]):
+            for iter, (input, depth, target, label) in enumerate(dataloader[phase]):
                 input = input.to(device)
+                depth = depth.to(device)
                 target = target.to(device)
                 label = label.to(device)
                 if phase == 'train':
                     optimizer.zero_grad()
                     with torch.set_grad_enabled(True):
-                        out = net(input) # pass all inputs through encoder first
+                        out = net(input,depth) # pass all inputs through encoder first
                     loss = sup_loss(out, label)
                     out_ = out.detach().clone()
                     label_ = label.detach().clone()
@@ -184,7 +186,7 @@ for r in range(repeats):
                         samples_F1 = []
                         samples_acc = []
                         for i in range(num_samples):
-                            outs.append(net(input))
+                            outs.append(net(input, depth))
                         # Metrics:
                         for out in outs:
                             out_ = out.detach().clone()
@@ -220,16 +222,6 @@ for r in range(repeats):
             plotter.plot('IU', phase, 'IU', epoch, epoch_IU)
             plotter.plot('F1', phase, 'F1', epoch, epoch_F1)
 
-            if len(loss_history) == 20:
-                print(np.asarray(loss_history))
-                d_loss = np.abs(np.mean(loss_history) - avg_loss) 
-                avg_loss = np.mean(np.asarray(loss_history))
-                loss_history = []
-                if d_loss < 0.001:
-                    print("Stopping early, no significant change in val loss.")
-                    utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
-                    break
-
             if phase == 'val' and epoch_IU > best_IU:
                 best_IU = epoch_IU
                 is_best = True
@@ -241,6 +233,17 @@ for r in range(repeats):
                 'optimizer': optimizer.state_dict()
             }
             utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)       
+
+            if len(loss_history) == 20:
+                print(np.asarray(loss_history))
+                d_loss = np.abs(np.mean(loss_history) - avg_loss) 
+                avg_loss = np.mean(np.asarray(loss_history))
+                loss_history = []
+                if d_loss < 0.001:
+                    print("Stopping early, no significant change in val loss.")
+                    utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
+                    break
+
 
 
 

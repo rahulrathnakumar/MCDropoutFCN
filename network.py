@@ -64,7 +64,7 @@ class VGGNet(VGG):
 
 
 class FCNs(nn.Module):
-    def __init__(self, pretrained_net, n_class, p = 0.5):
+    def __init__(self, pretrained_net, n_class, p):
         super().__init__()
         self.n_class = n_class
         self.pretrained_net = pretrained_net
@@ -80,7 +80,7 @@ class FCNs(nn.Module):
         self.deconv5 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
         self.bn5     = nn.BatchNorm2d(32)
         self.classifier = nn.Conv2d(32, n_class, kernel_size=1)
-        self.dropout = nn.Dropout(p = 0.5)
+        self.dropout = nn.Dropout(p = p)
 
     def forward(self, x):
         output = self.pretrained_net(x)

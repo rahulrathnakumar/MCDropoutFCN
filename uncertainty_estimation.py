@@ -38,6 +38,7 @@ batch_accuracy = []
 
 
 # CONFIG VARIABLES
+p = dropout_prob
 # Dataset parameters
 root_dir = root_dir
 num_classes = num_classes
@@ -87,7 +88,7 @@ val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, imag
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size)
 
 vgg_model = VGGNet()
-net = FCNs(pretrained_net=vgg_model, n_class = num_classes)
+net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
 checkpoint_path = checkpoint_dir + 'checkpoint.pt'
 net, epoch = load_ckp(checkpoint_path, net)
 print("Epoch loaded: ", epoch)
@@ -186,6 +187,7 @@ batch_accuracy = []
 
 
 # CONFIG VARIABLES
+p = dropout_prob
 # Dataset parameters
 root_dir = root_dir
 num_classes = num_classes
@@ -229,7 +231,7 @@ val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, imag
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 vgg_model = VGGNet()
-net = FCNs(pretrained_net=vgg_model, n_class = num_classes)
+net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
 tta_model = tta.SegmentationTTAWrapper(net, tta.aliases.d4_transform(), merge_mode='mean')
 best_path = best_dir + 'best_model.pt'
 net, epoch = load_ckp(best_path, net)

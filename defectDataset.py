@@ -94,7 +94,7 @@ class DefectDataset(Dataset):
 
 class ASUDepth(Dataset):
 
-	def __init__(self, root_dir, image_set='train', transforms=None):
+	def __init__(self, root_dir, num_classes, image_set='train', num_training = None,  transforms=None):
 		"""
 		Parameters:
 			root_dir (string): Root directory of the ASU-Depth dataset.
@@ -102,7 +102,7 @@ class ASUDepth(Dataset):
 			transforms (callable): Transform to be applied
 				on a sample.
 		"""
-		self.n_class = 4
+		self.n_class = num_classes
 		self.root_dir = root_dir
 		self.image_set = image_set
 		self.transforms = transforms
@@ -110,8 +110,11 @@ class ASUDepth(Dataset):
 		self.images = []
 		self.depths = []
 		self.targets = []
-
-		img_list = self.read_image_list(os.path.join(root_dir, '{:s}.txt'.format(image_set)))
+		
+		if num_training and image_set == 'train':
+			img_list = np.random.choice(self.read_image_list(os.path.join(root_dir, '{:s}.txt'.format(image_set))), num_training)
+		else:
+			img_list = self.read_image_list(os.path.join(root_dir, '{:s}.txt'.format(image_set)))
 
 		for img_name in img_list:
 			img_filename = os.path.join(root_dir, 'images/{:s}'.format(img_name))
@@ -153,7 +156,9 @@ class ASUDepth(Dataset):
 		image = Image.open(self.images[index]).convert('RGB')
 		depth = Image.open(self.depths[index]).convert('RGB')
 		target = Image.open(self.targets[index])
-		
+		target = target.convert('L')
+
+
 		if self.transforms is not None:
 			image = self.transforms(image)
 		
@@ -177,4 +182,4 @@ class ASUDepth(Dataset):
 		for c in range(self.n_class):
 			label[c][target == c] = 1
 
-		return image, depth, label
+		return image, depth, target, label

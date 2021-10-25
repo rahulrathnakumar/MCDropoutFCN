@@ -40,12 +40,13 @@ for r in range(repeats):
 	batch_accuracy = []
 
 	# CONFIG VARIABLES
+	p = dropout_prob
+
 	# Dataset parameters
 	root_dir = root_dir
 	num_classes = num_classes
 	# MC Sampling
 	num_samples = mc_samples
-
 	# Admin
 	load_model = True
 
@@ -84,7 +85,7 @@ for r in range(repeats):
 	val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 	vgg_model = VGGNet()
-	net = FCNs(pretrained_net=vgg_model, n_class = num_classes)
+	net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
 	best_path = best_dir + 'best_model.pt'
 	net, epoch = load_ckp(best_path, net)
 	print("Epoch loaded: ", epoch)
@@ -170,6 +171,7 @@ for r in range(repeats):
 
 
 	# CONFIG VARIABLES
+	p = dropout_prob
 	# Dataset parameters
 	root_dir = root_dir
 	num_classes = num_classes
@@ -213,7 +215,7 @@ for r in range(repeats):
 	val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 	vgg_model = VGGNet()
-	net = FCNs(pretrained_net=vgg_model, n_class = num_classes)
+	net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
 	tta_model = tta.SegmentationTTAWrapper(net, tta.aliases.d4_transform(), merge_mode='mean')
 	best_path = best_dir + 'best_model.pt'
 	net, epoch = load_ckp(best_path, net)

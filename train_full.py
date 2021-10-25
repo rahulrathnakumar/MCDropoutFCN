@@ -19,8 +19,8 @@ import shutil
 import csv
 from config import *
 
-from defectDataset import DefectDataset
-from network import *
+from defectDataset import DefectDataset, ASUDepth
+from network_rgbd import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
 import utils
@@ -95,14 +95,14 @@ data_transforms = {
     }
 # Dataloaders
 
-image_datasets = {x: DefectDataset(root_dir, num_classes = num_classes,image_set = x, transforms=data_transforms[x])
+image_datasets = {x: ASUDepth(root_dir, num_classes = num_classes,image_set = x, transforms=data_transforms[x])
                         for x in ['train', 'val']}
 dataloader = {x: DataLoader(image_datasets[x], batch_size= batch_size, shuffle=True, num_workers=0)
                     for x in ['train', 'val']}
 
 # Network
 vgg_model = VGGNet()
-net = FCNs(pretrained_net = vgg_model, n_class = num_classes, p = p)
+net = FCNDepth(pretrained_net = vgg_model, n_class = num_classes, p = p)
 vgg_model = vgg_model.to(device)
 net = net.to(device)
 
@@ -128,6 +128,8 @@ if load_model:
 # supervised loss
 # sup_loss = DC_and_BD_loss(soft_dice_kwargs= {'batch_dice' : False, 'do_bg' : False, 'smooth' : 1e-5, 'square' : False}, bd_kwargs = {})
 sup_loss = nn.BCEWithLogitsLoss()
+loss_history = []
+avg_loss = 0
 global global_step
 global_step = 0
 best_IU = 0
@@ -146,14 +148,15 @@ for epoch in range(epochs):
             net.eval()
             net.dropout.train()
         # Train/val loop
-        for iter, (input, target, label) in enumerate(dataloader[phase]):
+        for iter, (input, depth, target, label) in enumerate(dataloader[phase]):
             input = input.to(device)
+            depth = depth.to(device)
             target = target.to(device)
             label = label.to(device)
             if phase == 'train':
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(True):
-                    out = net(input) # pass all inputs through encoder first
+                    out = net(input, depth) # pass all inputs through encoder first
                 loss = sup_loss(out, label)
                 out_ = out.detach().clone()
                 label_ = label.detach().clone()
@@ -180,7 +183,7 @@ for epoch in range(epochs):
                     samples_F1 = []
                     samples_acc = []
                     for i in range(num_samples):
-                        outs.append(net(input))
+                        outs.append(net(input, depth))
                     # Metrics:
                     for out in outs:
                         out_ = out.detach().clone()
@@ -207,6 +210,9 @@ for epoch in range(epochs):
         epoch_F1 = np.mean(batchF1)
         if phase == 'train':
             scheduler.step()
+        if phase == 'val':
+            loss_history.append(epoch_loss)
+
         print('{} Loss: {:.4f}, Acc: {:.4f}, IoU: {:.4f}, F1: {:.4f}'.format(phase, epoch_loss, epoch_acc, epoch_IU, epoch_F1))
         
         plotter.plot('loss', phase, 'Loss', epoch, epoch_loss)
@@ -225,6 +231,15 @@ for epoch in range(epochs):
             'optimizer': optimizer.state_dict()
         }
         utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)       
+        if len(loss_history) == 20:
+            print(np.asarray(loss_history))
+            d_loss = np.abs(np.mean(loss_history) - avg_loss) 
+            avg_loss = np.mean(np.asarray(loss_history))
+            loss_history = []
+            if d_loss < 0.001:
+                print("Stopping early, no significant change in val loss.")
+                utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
+
 
 
 
