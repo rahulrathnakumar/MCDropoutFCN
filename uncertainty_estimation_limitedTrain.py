@@ -17,8 +17,9 @@ import GPUtil
 import shutil
 import csv
 from config import *
-from defectDataset import DefectDataset
+from defectDataset import DefectDataset, ASUDepth
 from network import *
+# from network_rgbd import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
 from utils import *
@@ -100,6 +101,7 @@ for r in range(repeats):
 		net.dropout.train()
 		softmax = nn.Softmax(dim = 1)
 
+		# for iter, (input, depth, target, label) in enumerate(val_dataloader):
 		for iter, (input, target, label) in enumerate(val_dataloader):
 			outs = []
 			outs_sm = []
@@ -109,10 +111,12 @@ for r in range(repeats):
 
 			# Epistemic Uncertainty
 			input = input.to(device)
+			# depth = depth.to(device)
 			target = target.to(device)
 			label = label.to(device)
 			for i in range(num_samples):
-				outs.append(net(input))        
+				# outs.append(net(input, depth))        
+				outs.append(net(input))
 			for out in outs:
 				N, _, h, w = out.shape
 				out_ = out.detach().clone()
@@ -227,10 +231,12 @@ for r in range(repeats):
 	std=[0.229, 0.224, 0.225]
 	print("Validating at epoch: {:.4f}".format(epoch))
 	with torch.no_grad():
+		# for iter, (input, depth, target, label) in enumerate(val_dataloader):
 		for iter, (input, target, label) in enumerate(val_dataloader):
 			# Transform data using custom transforms function - mc_samples
 			softmax = nn.Softmax(dim = 1)
 			input = input.to(device)
+			# depth = depth.to(device)
 			target = target.to(device)
 			label = label.to(device)
 			outs = []
@@ -244,8 +250,11 @@ for r in range(repeats):
 			samples_acc = []
 			samples_acc_unaug = []
 			for i in range(num_samples):
+				# outs.append(tta_model(input, depth))
+				# outs_unaug.append(net(input, depth))
 				outs.append(tta_model(input))
 				outs_unaug.append(net(input))
+
 			for out in outs:
 				N, _, h, w = out.shape
 				out_ = out.detach().clone()

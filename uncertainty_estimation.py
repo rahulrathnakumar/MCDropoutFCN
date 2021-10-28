@@ -19,7 +19,8 @@ import shutil
 import csv
 from config import *
 from defectDataset import ASUDepth, DefectDataset
-from network_rgbd import *
+# from network_rgbd import *
+from network import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
 from utils import *
@@ -84,11 +85,11 @@ data_transforms = {
 	])
 	}
 # Dataloading
-val_dataset = ASUDepth(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms = data_transforms['val'])
+val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms = data_transforms['val'])
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size)
 
 vgg_model = VGGNet()
-net = FCNDepth(pretrained_net=vgg_model, n_class = num_classes, p = p)
+net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
 best_path = best_dir + 'best_model.pt'
 net, epoch = load_ckp(best_path, net)
 print("Epoch loaded: ", epoch)
@@ -107,7 +108,8 @@ with torch.no_grad():
 	batchF1 = []
 	batch_accuracy = []
 	count = 0
-	for iter, (input, depth, target, label) in enumerate(val_dataloader):
+	# for iter, (input, depth, target, label) in enumerate(val_dataloader):
+	for iter, (input, target, label) in enumerate(val_dataloader):
 		outs = []
 		outs_sm = []
 		samples_IU = []
@@ -115,11 +117,12 @@ with torch.no_grad():
 		samples_acc = []
 
 		input = input.to(device)
-		depth = depth.to(device)
+		# depth = depth.to(device)
 		target = target.to(device)
 		label = label.to(device)
 		for i in range(num_samples):
-			outs.append(net(input, depth))        
+			# outs.append(net(input, depth))        
+			outs.append(net(input))
 		for out in outs:
 			out_ = out.detach().clone()
 			label_ = label.detach().clone()
@@ -228,11 +231,11 @@ data_transforms = {
 	])
 }
 # Dataloading
-val_dataset = ASUDepth(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms= data_transforms['val'])
+val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, image_set='val', transforms= data_transforms['val'])
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 vgg_model = VGGNet()
-net = FCNDepth(pretrained_net=vgg_model, n_class = num_classes, p = p)
+net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
 tta_model = tta.SegmentationTTAWrapper(net, tta.aliases.d4_transform(), merge_mode='mean')
 best_path = best_dir + 'best_model.pt'
 net, epoch = load_ckp(best_path, net)
@@ -244,11 +247,12 @@ mean=[0.485, 0.456, 0.406]
 std=[0.229, 0.224, 0.225]
 print("Validating at epoch: {:.4f}".format(epoch))
 with torch.no_grad():
-	for iter, (input, depth, target, label) in enumerate(val_dataloader):
+	# for iter, (input, depth, target, label) in enumerate(val_dataloader):
+	for iter, (input, target, label) in enumerate(val_dataloader):
 		# Transform data using custom transforms function - mc_samples
 		softmax = nn.Softmax(dim = 1)
 		input = input.to(device)
-		depth = depth.to(device)
+		# depth = depth.to(device)
 		target = target.to(device)
 		label = label.to(device)
 		outs = []
@@ -262,8 +266,11 @@ with torch.no_grad():
 		samples_acc = []
 		samples_acc_unaug = []
 		for i in range(num_samples):
-			outs.append(tta_model(input, depth))
-			outs_unaug.append(net(input, depth))
+			# outs.append(tta_model(input, depth))
+			# outs_unaug.append(net(input, depth))
+			outs.append(tta_model(input))
+			outs_unaug.append(net(input))
+
 		for out in outs:
 			N, _, h, w = out.shape
 			out_ = out.detach().clone()

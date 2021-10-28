@@ -136,6 +136,8 @@ for r in range(repeats):
     best_IU = 0
     loss_history = []
     avg_loss = 0
+    d_loss = 1e10
+    break_out_flag = False
     for epoch in range(epochs):
         print('Epoch {}/{}'.format(epoch,epochs - 1))
         for phase in ['train','val']:
@@ -234,15 +236,18 @@ for r in range(repeats):
             }
             utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)       
 
-            if len(loss_history) == 20:
-                print(np.asarray(loss_history))
+            if len(loss_history) == 40:
                 d_loss = np.abs(np.mean(loss_history) - avg_loss) 
                 avg_loss = np.mean(np.asarray(loss_history))
                 loss_history = []
-                if d_loss < 0.001:
-                    print("Stopping early, no significant change in val loss.")
-                    utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
-                    break
+
+            if d_loss < 0.001:
+                break_out_flag = True
+                utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
+                break
+        if break_out_flag:
+            print("Stopping early, no significant change in val loss.")
+            break
 
 
 
