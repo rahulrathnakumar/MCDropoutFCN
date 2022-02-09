@@ -1,9 +1,7 @@
 import torch
 import shutil
 import numpy as np
-from config import *
 from visdom import Visdom
-
 import matplotlib.pyplot as plt
 import imshowpair
 
@@ -83,10 +81,10 @@ def save_predictions(imgList, path):
 
 def pixel_accuracy(output, target):
     accuracy = []
-    N, _, h, w = output.shape
+    N, C, h, w = output.shape
     output = output.data.cpu().numpy()
-    pred = output.transpose(0, 2, 3, 1).reshape(-1, num_classes).argmax(axis=1).reshape(N, h, w)
-    target = target.cpu().numpy().transpose(0, 2, 3, 1).reshape(-1, num_classes).argmax(axis=1).reshape(N, h, w)
+    pred = output.transpose(0, 2, 3, 1).reshape(-1, C).argmax(axis=1).reshape(N, h, w)
+    target = target.cpu().numpy().transpose(0, 2, 3, 1).reshape(-1, C).argmax(axis=1).reshape(N, h, w)
     for p,t in zip(pred, target):
         correct = (p == t).sum()
         total   = (t == t).sum()
@@ -100,12 +98,12 @@ def f1(iou):
 
 
 def iou(output, target, per_image = False):
-    N, _, h, w = output.shape
+    N, C, h, w = output.shape
     output = output.data.cpu().numpy()
-    pred = output.transpose(0, 2, 3, 1).reshape(-1, num_classes).argmax(axis=1).reshape(N, h, w)
-    predIU = np.zeros((pred.shape[0],num_classes, h, w))
+    pred = output.transpose(0, 2, 3, 1).reshape(-1, C).argmax(axis=1).reshape(N, h, w)
+    predIU = np.zeros((pred.shape[0], C, h, w))
     for i in range(pred.shape[0]):
-        for c in range(num_classes):
+        for c in range(C):
             predIU[i][c][pred[i] == c] = 1
     
     predIU = predIU.astype(np.uint8)
@@ -142,10 +140,23 @@ def normalize(img):
 
 # Epistemic Uncertainty
 def entropy(y):
+    N,C,H,W = y.shape
     entropy_c = []
-    for c in range(num_classes):
-        entropy_c.append(y[:,c,:,:]*np.log(y[:,c,:,:]))
+    for c in range(C):
+        entropy_c.append(y[:,c,:,:]*np.log(y[:,c,:,:] + 1e-10))
     uncertainty = -np.sum(np.asarray(entropy_c), axis = 0)
     # uncertainty = np.asarray(entropy_c)[1]
     return uncertainty
 
+def stochastic_log_softmax(mean, var):
+    '''
+    Returns Lx in the paper
+    '''
+    # Sample 't' times from a normal distribution to get x_hat
+    x_hats = list()
+    for t in range(10):
+        eps = torch.randn(var.size()).cuda()
+        x_hat = mean + torch.mul(var, eps)
+        x_hats.append(x_hat)
+    x_hats = torch.stack(x_hats)
+    return torch.mean(torch.log_softmax(x_hats , dim = 2), dim = 0)

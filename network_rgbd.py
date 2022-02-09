@@ -99,7 +99,7 @@ class FCNDepth(nn.Module):
         self.bn4     = nn.BatchNorm2d(64)
         self.deconv5 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
         self.bn5     = nn.BatchNorm2d(32)
-        self.classifier = nn.Conv2d(32, n_class, kernel_size=1)
+        self.classifier = nn.Conv2d(32, n_class*2, kernel_size=1)
         self.dropout = nn.Dropout(p = p)
 
     def forward(self, x_rgb, x_depth):
@@ -128,18 +128,18 @@ class FCNDepth(nn.Module):
         
 
         # Fusion Block : NON-LINEAR WEIGHTED COMBINATION 
-        # x5 = self.relu(self.fuseBlock_1(x5_rgb, x5_depth, 'x5'))
-        # x4 = self.relu(self.fuseBlock_1(x4_rgb, x4_depth, 'x4'))
-        # x3 = self.relu(self.fuseBlock_1(x3_rgb, x3_depth, 'x3'))
-        # x2 = self.relu(self.fuseBlock_1(x2_rgb, x2_depth, 'x2'))
-        # x1 = self.relu(self.fuseBlock_1(x1_rgb, x1_depth, 'x1'))
+        x5 = self.relu(self.fuseBlock_1(x5_rgb, x5_depth, 'x5'))
+        x4 = self.relu(self.fuseBlock_1(x4_rgb, x4_depth, 'x4'))
+        x3 = self.relu(self.fuseBlock_1(x3_rgb, x3_depth, 'x3'))
+        x2 = self.relu(self.fuseBlock_1(x2_rgb, x2_depth, 'x2'))
+        x1 = self.relu(self.fuseBlock_1(x1_rgb, x1_depth, 'x1'))
 
-        # Fusion Block: NON-LINEAR WEIGHTED COMBINATION W/ RECALIBRATION FILTERING
-        x5 = self.relu(self.fuseBlock_2(x5_rgb, x5_depth, 'x5'))
-        x4 = self.relu(self.fuseBlock_2(x4_rgb, x4_depth, 'x4'))
-        x3 = self.relu(self.fuseBlock_2(x3_rgb, x3_depth, 'x3'))
-        x2 = self.relu(self.fuseBlock_2(x2_rgb, x2_depth, 'x2'))
-        x1 = self.relu(self.fuseBlock_2(x1_rgb, x1_depth, 'x1'))
+        # # Fusion Block: NON-LINEAR WEIGHTED COMBINATION W/ RECALIBRATION FILTERING
+        # x5 = self.relu(self.fuseBlock_2(x5_rgb, x5_depth, 'x5'))
+        # x4 = self.relu(self.fuseBlock_2(x4_rgb, x4_depth, 'x4'))
+        # x3 = self.relu(self.fuseBlock_2(x3_rgb, x3_depth, 'x3'))
+        # x2 = self.relu(self.fuseBlock_2(x2_rgb, x2_depth, 'x2'))
+        # x1 = self.relu(self.fuseBlock_2(x1_rgb, x1_depth, 'x1'))
 
 
         # Fusion Block: SA-Gate

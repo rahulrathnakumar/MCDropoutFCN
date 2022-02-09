@@ -79,7 +79,7 @@ class FCNs(nn.Module):
         self.bn4     = nn.BatchNorm2d(64)
         self.deconv5 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
         self.bn5     = nn.BatchNorm2d(32)
-        self.classifier = nn.Conv2d(32, n_class, kernel_size=1)
+        self.classifier = nn.Conv2d(32, n_class*2, kernel_size=1)
         self.dropout = nn.Dropout(p = p)
 
     def forward(self, x):

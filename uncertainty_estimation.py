@@ -19,7 +19,7 @@ import shutil
 import csv
 from config import *
 from defectDataset import ASUDepth, DefectDataset
-# from network_rgbd import *
+from network_rgbd import *
 from network import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
@@ -43,6 +43,7 @@ p = dropout_prob
 # Dataset parameters
 root_dir = root_dir
 num_classes = num_classes
+is_rgbd = is_rgbd
 # MC Sampling
 num_samples = mc_samples
 
@@ -57,11 +58,12 @@ plotter = utils.VisdomLinePlotter(env_name='main')
 assert load_model, "Cannot load model. (load_model = False)"
 
 loaddir = directory_name
+save_dir_name = directory_name
 print("Current Directory:", loaddir)
 model_dir = os.path.join('models/', loaddir)
 checkpoint_dir = os.path.join(model_dir, 'checkpoints/')
 best_dir = os.path.join(model_dir, 'best/')
-save_dir = 'results/' + directory_name
+save_dir = 'results/' + save_dir_name
 if not os.path.exists(save_dir):
 	os.makedirs(save_dir)
 
@@ -89,7 +91,10 @@ val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, imag
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size)
 
 vgg_model = VGGNet()
-net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
+if is_rgbd:
+	net = FCNDepth(pretrained_net=vgg_model, n_class = num_classes, p = p)
+else:
+	net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
 best_path = best_dir + 'best_model.pt'
 net, epoch = load_ckp(best_path, net)
 print("Epoch loaded: ", epoch)
@@ -171,6 +176,8 @@ count = 0
 for epi in epistemic_uncertainty_full:
 		count += 1
 		save_predictions(imgList = [epi], path = save_dir + '/' + str(count) + "_epiAveraged.png")
+print("Mean epistemic uncertainty: ", np.mean(mean_epi_uncertainty))
+print("Mean F1 score (epistemic): ", np.mean(batchF1))
 
 # Plot scatter F1 vs Mean epistemic uncertainty
 plt.scatter(batchF1, mean_epi_uncertainty)
@@ -195,6 +202,7 @@ p = dropout_prob
 # Dataset parameters
 root_dir = root_dir
 num_classes = num_classes
+is_rgbd = is_rgbd
 # MC Sampling
 num_samples = mc_samples
 # Admin
@@ -203,11 +211,12 @@ load_model = True
 assert load_model, "Cannot load model. (load_model = False)"
 
 loaddir = directory_name
+save_dir_name = directory_name
 print("Current Directory:", loaddir)
 model_dir = os.path.join('models/', loaddir)
 checkpoint_dir = os.path.join(model_dir, 'checkpoints/')
 best_dir = os.path.join(model_dir, 'best/')
-save_dir = 'results/' + directory_name
+save_dir = 'results/' + save_dir_name
 if not os.path.exists(save_dir):
 	os.makedirs(save_dir)
 
@@ -235,7 +244,11 @@ val_dataset = DefectDataset(root_dir = root_dir, num_classes = num_classes, imag
 val_dataloader = DataLoader(val_dataset, batch_size= batch_size, shuffle=False)
 
 vgg_model = VGGNet()
-net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
+if is_rgbd:
+	net = FCNDepth(pretrained_net=vgg_model, n_class = num_classes, p = p)
+else:
+	net = FCNs(pretrained_net=vgg_model, n_class = num_classes, p = p)
+
 tta_model = tta.SegmentationTTAWrapper(net, tta.aliases.d4_transform(), merge_mode='mean')
 best_path = best_dir + 'best_model.pt'
 net, epoch = load_ckp(best_path, net)
@@ -326,3 +339,6 @@ plt.xlabel('F1-score averaged from Test Time Augmentation')
 plt.ylabel('Average Aleatoric Uncertainty')
 plt.savefig(save_dir + '/' + 'ale_F1.png')
 plt.close()
+
+print("Mean aleatoric uncertainty: ", np.mean(mean_ale_uncertainty))
+print("Mean F1 score (Ale): ", np.mean(batchF1))

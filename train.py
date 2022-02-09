@@ -16,10 +16,10 @@ import copy
 import GPUtil
 import shutil
 import csv
-from config import *
 
 from defectDataset import DefectDataset, ASUDepth
-from network_rgbd import *
+from network import *
+# from network_rgbd import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
 import utils
@@ -30,34 +30,43 @@ from shutil import copyfile
 from writer import *
 
 
-repeats = repeats
+import argparse
 
+
+# Optional arguments : Modifiables for shell script - training set size only for now
+parser = argparse.ArgumentParser()
+# parser.add_argument("--root_dir", 
+# help = "Specify training data path Eg: '/home/rrathnak/Documents/Work/Task-2/Datasets/asu_cropped'")
+# parser.add_argument("--dataset")
+parser.add_argument("--num_training", help = 'Number of training samples', default=200)
+args = parser.parse_args()
+
+repeats = 3
+num_epochs = 1500
+root_dir = '/home/rrathnak/Documents/Work/Task-2/Datasets/asu_cropped'
+dataset = 'ASU'
+is_rgbd = True
+val_dataset = 'ASU'
+num_classes = 4
+batch_size = 8
+lr = 0.01
+momentum = 0.9
+optim_w_decay = 1e-5
+step_size = 1500
+gamma = 0.1
+load_ckp = False
+print_gpu_usage = False
+dropout_prob = 0.1
+mc_samples = 1
+num_training = int(args.num_training)
+optimizer_name = 'SGD'
+directory_name = str(dataset) + '_PredictiveVariance_' + str(dropout_prob) + 'dropout_'+ str(num_training) + 'Train' + '_ASUColor' 
+save_dir_name = 'Training_' + directory_name + '_' + 'Val_' + str(val_dataset)
 
 for r in range(repeats):
-    # CONFIG VARIABLES
-    # Dataset parameters
-    root_dir = root_dir
-    num_classes = num_classes
-    # MC Sampling
-    num_samples = mc_samples
-
-    # Training and optimization parameters
-    epochs = num_epochs
-    batch_size = batch_size
-    lr = lr
-    momentum = momentum
-    optim_w_decay = optim_w_decay
-    step_size = step_size
-    gamma = gamma
-    p = dropout_prob
-    optimizer_name = optimizer_name
-    # Admin
-    load_model = load_ckp
-    
-
     # Initialize plotter
     global plotter
-    plotter = utils.VisdomLinePlotter(env_name='main')
+    plotter = utils.VisdomLinePlotter(env_name=directory_name)
 
     # Create results directories
     savedir = directory_name + "_" + str(r)
@@ -99,14 +108,14 @@ for r in range(repeats):
         }
     # Dataloaders
 
-    image_datasets = {x: ASUDepth(root_dir, image_set = x, num_classes = num_classes, num_training = 5, transforms=data_transforms[x])
+    image_datasets = {x: DefectDataset(root_dir, image_set = x, num_classes = num_classes, num_training = num_training, transforms=data_transforms[x])
                             for x in ['train', 'val']}
     dataloader = {x: DataLoader(image_datasets[x], batch_size= batch_size, shuffle=True, num_workers=0)
                         for x in ['train', 'val']}
 
     # Network
     vgg_model = VGGNet()
-    net = FCNDepth(pretrained_net= vgg_model, n_class = num_classes, p = p)
+    net = FCNs(pretrained_net= vgg_model, n_class = num_classes, p = dropout_prob)
     vgg_model = vgg_model.to(device)
     net = net.to(device)
 
@@ -124,13 +133,13 @@ for r in range(repeats):
         optimizer = torch.optim.Adam(net.parameters(), lr = lr, weight_decay = optim_w_decay)
 
 
-    if load_model:
+    if load_ckp:
         print("Loading checkpoint from previous save file...")
         ckp_path = checkpoint_dir + 'checkpoint.pt'
         net, optimizer, epoch = utils.load_ckp(ckp_path, net, optimizer=optimizer)
         print("Epoch loaded: ", epoch)
     # supervised loss
-    sup_loss = nn.BCEWithLogitsLoss()
+    sup_loss = nn.NLLLoss()
     global global_step
     global_step = 0
     best_IU = 0
@@ -138,8 +147,8 @@ for r in range(repeats):
     avg_loss = 0
     d_loss = 1e10
     break_out_flag = False
-    for epoch in range(epochs):
-        print('Epoch {}/{}'.format(epoch,epochs - 1))
+    for epoch in range(num_epochs):
+        print('Epoch {}/{}'.format(epoch,num_epochs - 1))
         for phase in ['train','val']:
             batchIU = []
             batchF1 = []
@@ -153,17 +162,24 @@ for r in range(repeats):
                 net.eval()
                 net.dropout.train()
             # Train/val loop
-            for iter, (input, depth, target, label) in enumerate(dataloader[phase]):
+            # for iter, (input, depth, target, label) in enumerate(dataloader[phase]):
+            for iter, (input, target, label) in enumerate(dataloader[phase]):
                 input = input.to(device)
-                depth = depth.to(device)
+                # depth = depth.to(device)
                 target = target.to(device)
                 label = label.to(device)
                 if phase == 'train':
                     optimizer.zero_grad()
                     with torch.set_grad_enabled(True):
-                        out = net(input,depth) # pass all inputs through encoder first
-                    loss = sup_loss(out, label)
-                    out_ = out.detach().clone()
+                        # out = net(input,depth) # pass all inputs through encoder first
+                        out = net(input) # pass all inputs through encoder first
+                    y_predict = out[:, :num_classes, :, :]
+                    var = out[:, num_classes:, :, :]
+
+                    Lx = utils.stochastic_log_softmax(y_predict, var)
+                    loss = sup_loss(Lx, target)
+                    # Below, I have just replaced out with 'y_predict', the predicted output
+                    out_ = y_predict.detach().clone()
                     label_ = label.detach().clone()
                     # sup_out__ = sup_out_.argmax(dim = 1).cpu()
                     # target__ = target_.argmax(dim = 1).cpu()
@@ -187,11 +203,14 @@ for r in range(repeats):
                         samples_IU = []
                         samples_F1 = []
                         samples_acc = []
-                        for i in range(num_samples):
-                            outs.append(net(input, depth))
+                        for i in range(mc_samples):
+                            # outs.append(net(input, depth))
+                            outs.append(net(input))
                         # Metrics:
                         for out in outs:
-                            out_ = out.detach().clone()
+                            y_predict = out[:, :num_classes, :, :]
+                            var = out[:, num_classes:, :, :]
+                            out_ = y_predict.detach().clone()
                             label_ = label.detach().clone()
                             out__ = softmax(out_)
                             outs_sm.append(out__.cpu().numpy())
@@ -200,13 +219,11 @@ for r in range(repeats):
                             samples_acc.append(accuracy)
                             samples_IU.append(iou)
                             samples_F1.append(utils.f1(iou))
-                        y_sm = np.nanmean(np.asarray(outs_sm), axis = 0)
-                        epistemic_uncertainty = utils.entropy(y_sm)
-                        plotter.image('epistemic_uncertainty', 'Epistemic Uncertainty', np.expand_dims(epistemic_uncertainty[0], 0))
                         batch_accuracy.append(np.nanmean(np.asarray(samples_acc)))
                         batchIU.append(np.nanmean(np.asarray(samples_IU)))
                         batchF1.append(np.nanmean(np.asarray(samples_F1)))
-                        loss = sup_loss(out, label)
+                        Lx = utils.stochastic_log_softmax(y_predict, var)
+                        loss = sup_loss(Lx, target)
                         running_acc += np.mean(batch_accuracy)
                         running_loss +=  loss.item()
             epoch_acc = running_acc/(iter+1)
@@ -236,12 +253,14 @@ for r in range(repeats):
             }
             utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)       
 
-            if len(loss_history) == 40:
-                d_loss = np.abs(np.mean(loss_history) - avg_loss) 
+            if len(loss_history) == 50:
+                d_loss = np.abs(np.mean(np.stack(loss_history)) - avg_loss)
                 avg_loss = np.mean(np.asarray(loss_history))
                 loss_history = []
 
-            if d_loss < 0.001:
+            if d_loss < 0.005:
+                print('Average loss in the past 50 iterations:', avg_loss)
+                print('d_loss: ', d_loss)
                 break_out_flag = True
                 utils.save_ckp(checkpoint, is_best, checkpoint_dir, best_dir)
                 break

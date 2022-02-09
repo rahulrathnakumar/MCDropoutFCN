@@ -20,7 +20,7 @@ import csv
 from config import *
 
 from defectDataset import DefectDataset, ASUDepth
-from network_rgbd import *
+from network import *
 from visdom import Visdom
 from matplotlib import pyplot as plt
 import utils
@@ -30,27 +30,38 @@ import matplotlib
 from matplotlib import pyplot as plt
 
 from losses_pytorch.boundary_loss import *    
+import argparse
 
-# CONFIG VARIABLES
-# Dataset parameters
-root_dir = root_dir
-num_classes = num_classes
-# MC Sampling
-num_samples = mc_samples
 
-# Training and optimization parameters
-optimizer_name = optimizer_name
-epochs = num_epochs
-batch_size = batch_size
-lr = lr
-momentum = momentum
-optim_w_decay = optim_w_decay
-step_size = step_size
-gamma = gamma
-p = dropout_prob
-# Admin
-load_model = load_ckp
+# Optional arguments : Modifiables for shell script - training set size only for now
+parser = argparse.ArgumentParser()
+# parser.add_argument("--root_dir", 
+# help = "Specify training data path Eg: '/home/rrathnak/Documents/Work/Task-2/Datasets/asu_cropped'")
+# parser.add_argument("--dataset")
+parser.add_argument("--num_training", help = 'Number of training samples')
+args = parser.parse_args()
 
+repeats = 3
+num_epochs = 1500
+root_dir = '/home/rrathnak/Documents/Work/Task-2/Datasets/RoadCracks'
+dataset = 'RoadCracks'
+is_rgbd = False
+val_dataset = 'ASU'
+num_classes = 2
+batch_size = 8
+lr = 0.01
+momentum = 0.9
+optim_w_decay = 1e-5
+step_size = 1500
+gamma = 0.1
+load_ckp = False
+print_gpu_usage = False
+dropout_prob = 0.1
+mc_samples = 5
+num_training = args.num_training
+optimizer_name = 'SGD'
+directory_name = str(dataset) + '_' + str(dropout_prob) + 'dropout_'+ str(num_training) + 'Train' + '_StepLR'
+save_dir_name = 'Training_' + directory_name + '_' + 'Val_' + str(val_dataset)
 
 # Initialize plotter
 global plotter
@@ -95,14 +106,14 @@ data_transforms = {
     }
 # Dataloaders
 
-image_datasets = {x: ASUDepth(root_dir, num_classes = num_classes,image_set = x, transforms=data_transforms[x])
+image_datasets = {x: DefectDataset(root_dir, num_classes = num_classes,image_set = x, transforms=data_transforms[x])
                         for x in ['train', 'val']}
 dataloader = {x: DataLoader(image_datasets[x], batch_size= batch_size, shuffle=True, num_workers=0)
                     for x in ['train', 'val']}
 
 # Network
 vgg_model = VGGNet()
-net = FCNDepth(pretrained_net = vgg_model, n_class = num_classes, p = p)
+net = FCNs(pretrained_net = vgg_model, n_class = num_classes, p = dropout_prob)
 vgg_model = vgg_model.to(device)
 net = net.to(device)
 
@@ -120,7 +131,7 @@ elif optimizer_name == 'Adam':
 
 
 
-if load_model:
+if load_ckp:
     print("Loading checkpoint from previous save file...")
     ckp_path = checkpoint_dir + 'checkpoint.pt'
     net, optimizer, epoch = utils.load_ckp(ckp_path, net, optimizer=optimizer)
@@ -136,8 +147,8 @@ best_IU = 0
 d_loss = 1e10
 break_out_flag = False
 
-for epoch in range(epochs):
-    print('Epoch {}/{}'.format(epoch,epochs - 1))
+for epoch in range(num_epochs):
+    print('Epoch {}/{}'.format(epoch,num_epochs - 1))
     for phase in ['train','val']:
         batchIU = []
         batchF1 = []
@@ -151,15 +162,15 @@ for epoch in range(epochs):
             net.eval()
             net.dropout.train()
         # Train/val loop
-        for iter, (input, depth, target, label) in enumerate(dataloader[phase]):
+        for iter, (input, target, label) in enumerate(dataloader[phase]):
             input = input.to(device)
-            depth = depth.to(device)
+            # depth = depth.to(device)
             target = target.to(device)
             label = label.to(device)
             if phase == 'train':
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(True):
-                    out = net(input, depth) # pass all inputs through encoder first
+                    out = net(input) # pass all inputs through encoder first
                 loss = sup_loss(out, label)
                 out_ = out.detach().clone()
                 label_ = label.detach().clone()
@@ -185,8 +196,8 @@ for epoch in range(epochs):
                     samples_IU = []
                     samples_F1 = []
                     samples_acc = []
-                    for i in range(num_samples):
-                        outs.append(net(input, depth))
+                    for i in range(mc_samples):
+                        outs.append(net(input))
                     # Metrics:
                     for out in outs:
                         out_ = out.detach().clone()

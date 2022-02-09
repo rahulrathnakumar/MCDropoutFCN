@@ -4,3 +4,14 @@ results/
 test/
 config.py
 script.py
+__pycache__/config.cpython-36.pyc
+__pycache__/config.cpython-37.pyc
+__pycache__/defectDataset.cpython-36.pyc
+__pycache__/defectDataset.cpython-37.pyc
+__pycache__/network_rgbd.cpython-36.pyc
+__pycache__/network_rgbd.cpython-37.pyc
+__pycache__/network.cpython-36.pyc
+__pycache__/network.cpython-37.pyc
+__pycache__/utils.cpython-36.pyc
+__pycache__/utils.cpython-37.pyc
+__pycache__/writer.cpython-37.pyc
