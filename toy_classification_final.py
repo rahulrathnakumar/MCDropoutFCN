@@ -12,13 +12,10 @@ import torch.nn.functional as F
 from sklearn.datasets import make_moons
 
 
-class ShallowLinear(nn.Module):
-    '''
-    A simple, general purpose, fully connected network
-    '''
+class NNLinear(nn.Module):
     def __init__(self, p):
         # Perform initialization of the pytorch superclass
-        super(ShallowLinear, self).__init__()
+        super(NNLinear, self).__init__()
         
         # Define network layer dimensions
         D_in, H1, H2, H3, D_out = [2, 64, 64, 64, 4]    # These numbers correspond to each layer: [input, hidden_1, output]
@@ -85,13 +82,6 @@ def plot_loss(losses, show=True):
 
 
 
-# def heteroscedastic_classification_loss(pred, target):
-#     '''
-#     Returns NLL Loss for a stochastic network output
-#     '''
-#     return nn.NLLLoss(pred, target)
-
-
 def stochastic_log_softmax(mean, var):
     '''
     Returns Lx in the paper
@@ -106,28 +96,15 @@ def stochastic_log_softmax(mean, var):
     return torch.mean(torch.log_softmax(x_hats , dim = 2), dim = 0)
 
 def train_batch(model, x, y, optimizer, loss_fn):
-    # Run forward calculation
     out = model.forward(x)
     y_predict = out[:,:2]
     var = out[:,2:]
-
     # Compute stochastic NLL Loss
     Lx = stochastic_log_softmax(y_predict, var)
     loss = loss_fn(Lx, y)
-
-    # Before the backward pass, use the optimizer object to zero all of the
-    # gradients for the variables it will update (which are the learnable weights
-    # of the model)
     optimizer.zero_grad()
-
-    # Backward pass: compute gradient of the loss with respect to model
-    # parameters
     loss.backward()
-
-    # Calling the step function on an Optimizer makes an update to its
-    # parameters
     optimizer.step()
-
     return loss.data.item()
 
 def train(model, loader, optimizer, loss_fn, epochs=200):
@@ -224,18 +201,18 @@ def run(dataset_train, dataset_test):
     
     # Define the hyperparameters
     learning_rate = 1e-3
-    shallow_model = ShallowLinear(p = 0.1)
+    net = NNLinear(p = 0.1)
     
     # Initialize the optimizer with above parameters
-    optimizer = optim.Adam(shallow_model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    optimizer = optim.Adam(net.parameters(), lr=learning_rate, weight_decay=1e-5)
     loss_fn = nn.NLLLoss()
     # Train and get the resulting loss per iteration
-    loss = train(model=shallow_model, loader=data_loader_train, optimizer=optimizer, loss_fn=loss_fn)
+    loss = train(model=net, loader=data_loader_train, optimizer=optimizer, loss_fn=loss_fn)
     
     # Test and get the resulting predicted y values
-    y_predict = test(model=shallow_model, loader=data_loader_test, mc_samples = 1000, epistemic = True)
-    _, y_ale_variance = test(model=shallow_model, loader=data_loader_test, mc_samples = 1000, epistemic = False)
-    plot_uncertain_decision_boundary(model = shallow_model, mc_samples = 100)
+    y_predict = test(model=net, loader=data_loader_test, mc_samples = 1000, epistemic = True)
+    _, y_ale_variance = test(model=net, loader=data_loader_test, mc_samples = 1000, epistemic = False)
+    plot_uncertain_decision_boundary(model = net, mc_samples = 100)
     return loss, y_predict, y_ale_variance
 
 

@@ -22,7 +22,7 @@ def heteroscedastic_loss(pred, var, target):
     return loss.mean(), loss1.mean(), loss2.mean()
 
 
-n_x_train = 10000   # the number of training datapoints
+n_x_train = 100   # the number of training datapoints
 n_x_test = 100     # the number of testing datapoints
 
 # x_train = np.random.rand(n_x_train,1)*18 - 9  # Initialize a vector of with dimensions [n_x, 1] and extend
